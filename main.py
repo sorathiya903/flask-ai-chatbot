@@ -2,12 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from google import genai
 import os
 import webbrowser as wb
-api_key = os.getenv("GEMINI_API_KEY")
 
-if api_key:
-    print("API key loaded:", api_key[:6] + "..." + api_key[-4:])
-else:
-    print("API key NOT found")
 app = Flask(__name__)
 
 # Create Gemini client
@@ -45,3 +40,4 @@ def chat():
 
 if __name__ == "__main__":
     app.run()
+

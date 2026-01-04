@@ -1,169 +1,58 @@
-
-<!DOCTYPE html>
-<html>
-
+    <!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Aditya's AI Chatbot</title>
+<meta charset="UTF-8">
+<title>Aditya's AI Chatbot</title>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300..900&display=swap');
 
-        body {
-            background: #171717;
-            display: flex;
-            margin: 0;
-            padding: 0;
-            height: auto;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            font-family: "Lexend", sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        .aiMsg {
-
-            width: 100%;
-            display: flex;
-
-
-            justify-content: flex-start;
-            align-items: center;
-
-            height: auto;
-        }
-
-        .aiBox {
-            padding: 9px;
-            margin: 4px;
-            border-radius: 20px;
-
-            max-width: 40%;
-            background-color: #2a2a2a;
-            display: flex;
-            color: white;
-            justify-content: flex-end;
-            align-items: center;
-            flex-direction:column;
-            height: auto;
-        }
-
-                .myBox {
-            padding: 9px;
-            margin: 4px;
-            border-radius: 20px;
-            
-            flex-direction:column;
-            max-width: 40%;
-            background-color: #2a2a2a;
-            display: flex;
-            color: white;
-            justify-content: flex-end;
-            align-items: center;
-
-            height: auto;
-        }
-
-        .myMsg {
-
-            width: 100%;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-
-            height: auto;
-        }
-
-        .chatArea {
-            width: 100%;
-            height: 100vh;
-            overflow-x: hidden;
-            overflow-y: scroll;
-
-        }
-
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-
-        .controls {
-            display: flex;
-            position: absolute;
-            bottom: 10%;
-            width: 80%;
-            left: 50%;
-            transform: translate(-50%);
-            justify-content: center;
-            align-items:flex-end;
-            flex-direction: row;
-        }
-
-        header {
-            width: 100vw;
-            height: 50px;
-            color: white;
-            font-size: 2em;
-            display: flex;
-            align-items: center;
-            background-color: #3c3c3a;
-            font-weight: 900;
-            padding: 9px;
-        }
-        textarea {
-            -webkit-backdrop-filter: blur(10px);
-    field-sizing: content;
-    height: auto;          
-    min-height: 70px;      
-    max-height: 5lh;
-    resize: none;         
-    opacity:0.3;
-    backdrop-filter: blur(50px);
-    align-self: flex-start; 
-    vertical-align: top;    
-    width:80vw;
-    font-size: 1.2em;
-    font-weight:500;
-    max-width: 100%;
-    outline: none;
-    padding: 10px;
-    background: grey !important;
-    color: hsl(0, 0, 90);
-    border: none;
-    border-radius: 20px;
-    
+body {
+    background: #171717;
+    margin: 0;
     font-family: "Lexend", sans-serif;
-    line-height: 1.4;
-    
+    color: white;
 }
-#send{
-    display:flex;
-    margin-bottom:4px;
-    height:50px;
-    width:65px;
-    position:relative;
-    right:65px;
-    bottom:2px;
-    justify-content: center;
-    align-items: center;
-    border:none;
-    border-radius: 50px;
-    background:#a5a5a5
-}
-.code-block {
-    width: 100%;
-    background: #111;
-    border-radius: 10px;
+
+header {
+    background: #3c3c3a;
     padding: 10px;
+    font-size: 1.6em;
+    font-weight: 800;
+}
+
+.chatArea {
+    height: 100vh;
+    overflow-y: auto;
+    padding-bottom: 140px;
+}
+
+.myMsg, .aiMsg {
+    display: flex;
+    margin: 6px;
+}
+
+.myMsg { justify-content: flex-end; }
+.aiMsg { justify-content: flex-start; }
+
+.myBox, .aiBox {
+    max-width: 60%;
+    padding: 10px;
+    border-radius: 14px;
+    background: #2a2a2a;
+}
+
+.code-block {
+    background: #0f0f0f;
+    border-radius: 10px;
+    padding: 12px;
     margin-top: 8px;
     position: relative;
     font-family: monospace;
-    white-space: pre-wrap;
+    white-space: pre;
     overflow-x: auto;
 }
 
@@ -172,186 +61,144 @@
     top: 6px;
     right: 6px;
     background: #444;
-    color: white;
     border: none;
+    color: white;
     border-radius: 6px;
     padding: 4px 8px;
     cursor: pointer;
-    font-size: 0.8em;
-            }
-    </style>
+    font-size: 0.75em;
+}
 
+.controls {
+    position: fixed;
+    bottom: 15px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
 
+textarea {
+    width: 80%;
+    min-height: 60px;
+    border-radius: 14px;
+    padding: 10px;
+    border: none;
+    outline: none;
+    font-size: 1em;
+}
+
+#send {
+    margin-left: 8px;
+    padding: 0 20px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+</style>
 </head>
 
 <body>
-    <div class="chatArea" id="chatA">
-        <header>
-           Aditya's AI Chatbot
-        </header>
 
+<div class="chatArea" id="chatA">
+    <header>Aditya's AI Chatbot</header>
+</div>
 
-    <div class="controls">
-        <textarea type="text" id="userInput" class='input' placeholder="Type your message"></textarea>
-        <button onclick="sendMessage()" id="send"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg>
-        </button>
-    </div>
-    <script>
-   
-// Initialize your DB (Ensure your firebaseConfig is already defined)
- const firebaseConfig = {
-      apiKey: "AIzaSyBHenryTkUVP21VqW7KL44ZXM_P_Qq6IIc",
-      authDomain: "chatting-e3bb2.firebaseapp.com",
-      databaseURL: "https://chatting-e3bb2-default-rtdb.firebaseio.com/",
-      projectId: "chatting-e3bb2",
-      storageBucket: "chatting-e3bb2.appspot.com",
-      messagingSenderId: "913896104186",
-      appId: "1:913896104186:web:7a6c81f80268d46f772943",
-      measurementId: "G-W9YHTX6SQR"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-        
+<div class="controls">
+    <textarea id="userInput" placeholder="Type your message"></textarea>
+    <button id="send" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+/* Firebase */
+firebase.initializeApp({
+    apiKey: "YOUR_FIREBASE_KEY",
+    databaseURL: "YOUR_DB_URL"
+});
+const db = firebase.database();
+
+/* -------- CODE BLOCK PARSER -------- */
 function createAIMessageWithCopy(text) {
-    const container = document.createElement("div");
-    container.className = "aiBox";
+    const box = document.createElement("div");
+    box.className = "aiBox";
 
-    const regex = /"""([\s\S]*?)"""/g;
+    const regex = /```([\s\S]*?)```/g;
     let lastIndex = 0;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
-        // Normal text before code
         const before = text.slice(lastIndex, match.index);
         if (before.trim()) {
             const p = document.createElement("div");
-            p.innerText = before;
-            container.appendChild(p);
+            p.textContent = before;
+            box.appendChild(p);
         }
 
-        // Code block
-        const codeBlock = document.createElement("pre");
-        codeBlock.className = "code-block";
-        codeBlock.innerText = match[1].trim();
+        const pre = document.createElement("pre");
+        pre.className = "code-block";
+        pre.textContent = match[1].trim();
 
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "copy-btn";
-        copyBtn.innerText = "Copy";
-
-        copyBtn.onclick = () => {
+        const btn = document.createElement("button");
+        btn.className = "copy-btn";
+        btn.textContent = "Copy";
+        btn.onclick = () => {
             navigator.clipboard.writeText(match[1].trim());
-            copyBtn.innerText = "Copied!";
-            setTimeout(() => copyBtn.innerText = "Copy", 1500);
+            btn.textContent = "Copied!";
+            setTimeout(() => btn.textContent = "Copy", 1500);
         };
 
-        codeBlock.appendChild(copyBtn);
-        container.appendChild(codeBlock);
-
+        pre.appendChild(btn);
+        box.appendChild(pre);
         lastIndex = regex.lastIndex;
     }
 
-    // Remaining text
     const after = text.slice(lastIndex);
     if (after.trim()) {
         const p = document.createElement("div");
-        p.innerText = after;
-        container.appendChild(p);
+        p.textContent = after;
+        box.appendChild(p);
     }
 
-    return container;
+    return box;
 }
-function  handleSendMessage() {
-        const textarea = document.getElementById('userInput');
-        const question = textarea.value.trim();
 
-        if (question !== "") {
-            // Push creates a unique ID for each question
-            db.ref('questions').push({
-                questionText: question,
-                timestamp: new Date().toISOString()
-            })
-            .then(() => console.log("Stored in Firebase!"))
-            .catch((error) => console.error("Firebase Error:", error));
-        }
-    }
+/* -------- SEND MESSAGE -------- */
+function sendMessage() {
+    const input = document.getElementById("userInput");
+    const msg = input.value.trim();
+    if (!msg) return;
 
+    const chat = document.getElementById("chatA");
 
+    const my = document.createElement("div");
+    my.className = "myMsg";
+    my.innerHTML = `<div class="myBox">${msg}</div>`;
+    chat.appendChild(my);
 
-        function sendMessage() {
+    input.value = "";
+    chat.scrollTop = chat.scrollHeight;
 
-            const message = document.getElementById("userInput").value;
-            let chatArea = document.getElementById('chatA')
-            if(message =="hi"){
-                let you = document.createElement('div')
-                you.className = "myMsg"
-                let myBox = document.createElement('div')
-                myBox.className = "aiBox"
-                you.appendChild(myBox)
-                myBox.innerHTML = message
-                chatArea.appendChild(you)
-                document.getElementById("userInput").value = ''
+    fetch("/chat", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: msg})
+    })
+    .then(r => r.json())
+    .then(data => {
+        const ai = document.createElement("div");
+        ai.className = "aiMsg";
 
-                setTimeout(()=>{
-                        chatArea.scrollTop = chatArea.scrollHeight;},50)
-
-                let aiReply = document.createElement("div")
-                        aiReply.className = "aiMsg"
-                        let aiBox = document.createElement('div')
-                        aiBox.className = 'aiBox'
-                    
-                        aiBox.innerText = "Hello! I m Aditya's AI"
-                        aiReply.appendChild(aiBox)
-                        chatArea.appendChild(aiReply)
-                        setTimeout(()=>{
-                        chatArea.scrollTop = chatArea.scrollHeight;},50)
-                return
-            }
-            if (message === "") {
-                alert('Please enter some text')
-            } else {
-                let you = document.createElement('div')
-                you.className = "myMsg"
-                let myBox = document.createElement('div')
-                myBox.className = "myBox"
-                you.appendChild(myBox)
-                myBox.innerHTML = message
-                handleSendMessage();
-                chatArea.appendChild(you)
-                document.getElementById("userInput").value = ''
-
-                setTimeout(()=>{
-                        chatArea.scrollTop = chatArea.scrollHeight;},50)
-                
-
-
-                fetch("/chat", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: message })
-                }).then(res => res.json()).then(data => {
-                    if (data.reply) {
-                       
-                        let aiReply = document.createElement("div");
-                aiReply.className = "aiMsg";
-
-                 const aiBox = createAIMessageWithCopy(data.reply);
-			    aiReply.appendChild(aiBox);
-			    chatArea.appendChild(aiReply);
-                        setTimeout(()=>{
-                        chatArea.scrollTop = chatArea.scrollHeight;},50)
-                    } else {
-                        let aiReply = document.createElement("div")
-                        aiReply.className = "aiMsg"
-                        aiReply.innerText = data.error;
-                    }
-                }).catch(err => {
-			alert(err)
-                    document.getElementById("botReply").innerText = "Error occurred";
-                });
-            }
+        if (data.reply) {
+            ai.appendChild(createAIMessageWithCopy(data.reply));
+        } else {
+            ai.innerHTML = `<div class="aiBox">${data.error}</div>`;
         }
 
+        chat.appendChild(ai);
+        chat.scrollTop = chat.scrollHeight;
+    })
+    .catch(err => alert(err));
+}
+</script>
 
-    </script>
 </body>
-
-  </html>
+	</html>

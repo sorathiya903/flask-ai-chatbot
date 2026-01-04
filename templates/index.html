@@ -330,13 +330,12 @@ function  handleSendMessage() {
                 }).then(res => res.json()).then(data => {
                     if (data.reply) {
                        
-                        let aiReply = document.createElement("div")
-                        aiReply.className = "aiMsg"
-                        let aiBox = document.createElement('div')
-                        aiBox.className = 'aiBox'
-                        const aiBox = createAIMessageWithCopy(data.reply);
-                        aiReply.appendChild(aiBox);
-                        chatArea.appendChild(aiReply)
+                        let aiReply = document.createElement("div");
+                aiReply.className = "aiMsg";
+
+                 const aiBox = createAIMessageWithCopy(data.reply);
+			    aiReply.appendChild(aiBox);
+			    chatArea.appendChild(aiReply);
                         setTimeout(()=>{
                         chatArea.scrollTop = chatArea.scrollHeight;},50)
                     } else {
@@ -345,6 +344,7 @@ function  handleSendMessage() {
                         aiReply.innerText = data.error;
                     }
                 }).catch(err => {
+			alert(err)
                     document.getElementById("botReply").innerText = "Error occurred";
                 });
             }

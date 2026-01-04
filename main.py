@@ -19,18 +19,9 @@ def chat():
     if not user_input:
         return jsonify({"error": "No message received"})
 
-    # Simple command handling
-    if "open youtube" in user_input.lower():
-        wb.open_new("https://www.youtube.com")
-        return jsonify({"reply": "Opening YouTube"})
-
-    if "open google" in user_input.lower():
-        wb.open_new("https://www.google.com")
-        return jsonify({"reply": "Opening Google"})
-
     try:
         response = client.models.generate_content(
-            model="models/gemini-2.5-flash",
+            model="models/gemini-2.5-flash-lite",
             contents=user_input
         )
         return jsonify({"reply": response.text})
@@ -40,4 +31,5 @@ def chat():
 
 if __name__ == "__main__":
     app.run()
+
 

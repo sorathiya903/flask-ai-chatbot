@@ -110,10 +110,19 @@ textarea {
 
 <script>
 /* Firebase */
-firebase.initializeApp({
-    apiKey: "YOUR_FIREBASE_KEY",
-    databaseURL: "YOUR_DB_URL"
-});
+	const firebaseConfig = {
+      apiKey: "AIzaSyBHenryTkUVP21VqW7KL44ZXM_P_Qq6IIc",
+      authDomain: "chatting-e3bb2.firebaseapp.com",
+      databaseURL: "https://chatting-e3bb2-default-rtdb.firebaseio.com/",
+      projectId: "chatting-e3bb2",
+      storageBucket: "chatting-e3bb2.appspot.com",
+      messagingSenderId: "913896104186",
+      appId: "1:913896104186:web:7a6c81f80268d46f772943",
+      measurementId: "G-W9YHTX6SQR"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+
 const db = firebase.database();
 
 /* -------- CODE BLOCK PARSER -------- */

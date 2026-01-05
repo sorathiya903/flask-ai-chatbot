@@ -20,6 +20,47 @@
 --header:linear-gradient(90deg,#667eea,#764ba2);
 --box:#fff;--text:#222;--accent:#ff6a00;
 }
+  
+#flip {
+  height:25px;
+  opacity:0.7;
+  padding-left:5px;
+  overflow:hidden;
+}
+
+#flip > div > div {
+  color:#fff;
+  background: linear-gradient(90deg, #6c63ff, #00f0ff, #ff6a00, #ff1a75);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientMove 2.5s ease-in-out infinite;
+  height:45px;
+  margin-bottom:45px;
+  display:inline-block;
+}
+@keyframes gradientMove {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+#flip div:first-child {
+  animation: show 2s ease infinite;
+}
+
+
+
+@keyframes show {
+  0% {margin-top:-270px;}
+  5% {margin-top:-180px;}
+  33% {margin-top:-180px;}
+  38% {margin-top:-90px;}
+  66% {margin-top:-90px;}
+  71% {margin-top:0px;}
+  99.99% {margin-top:0px;}
+  100% {margin-top:-270px;}
+}
+
 *{box-sizing:border-box;transition:.3s}
 body{margin:0;background:var(--bg);font-family:Lexend;color:var(--text)}
 
@@ -112,19 +153,48 @@ animation:pulse 1.2s infinite;
 }
   button{border:none;background:transparent}
   button:hover{height:10px}
+ .head{
+  
+  font-weight: 900;
+  text-align: center;
+
+  background: linear-gradient(
+    to right,
+    #00FFFF 0%,
+  /* Neon Cyan */
+    #00BFFF 20%,  /* Deep Sky Blue */
+    #1E90FF 40%,  /* Dodger Blue */
+    #007FFF 60%,  /* Electric Blue */
+    #005FFF 80%,  /* Vivid Medium Blue */
+   
+#00ffff 100%   /* Deep Electric Blue */
+  );
+  background-size: 300% auto;
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: shine 5s linear infinite;
+}
+
+@keyframes shine {
+  0% { background-position: 0% center; }
+  50% { background-position: 200% center; }
+  100% { background-position: 0% center; }
+}
 </style>
 </head>
 
 <body>
 
 <header>
-MessageGPT
+  <div class="head">MessageGPT</div>
 <div>
 <button onclick="toggleTheme()">🌗</button>
 <button onclick="toggleMenu()">☰</button>
 </div>
 </header>
-
+ 
 <div class="chatArea" id="chatA"></div>
 
 <div class="controls">
@@ -137,7 +207,7 @@ MessageGPT
 </div>
 
 <div class="menu" id="menu">
-  <button id="menuCloseBtn" style="background:grey;border:none;cursor:pointer;">
+  <button id="menuCloseBtn" onclick="toggleMenu()" style="background:grey;border:none;cursor:pointer;">
 <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
 <path d="M18.3 5.71 12 12l6.3 6.29-1.42 1.42L12 13.41l-6.29 6.3-1.42-1.42L10.59 12 4.29 5.71 5.7 4.29 12 10.59l6.29-6.3z"/>
 </svg>
@@ -174,7 +244,9 @@ function escapeHTML(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
+function toggleMenu(){
+  document.getElementById('menu').classList.toggle("open")
+}
 /* ---------- CREATE AI MESSAGE WITH CODE & BOLD ---------- */
 function createAIMessageWithCopy(text) {
     const box = document.createElement("div");
@@ -249,7 +321,16 @@ async function sendMessage() {
     // Loader animation
     const loader = document.createElement("div");
     loader.className = "aiMsg";
-    loader.innerHTML = `<div class="aiBox typing"><span></span><span></span><span></span></div>`;
+    loader.innerHTML = `<div class="aiBox typing"><span></span><span></span><span></span></div>
+  <div id=container>
+  
+  <div id=flip>
+    <div><div>Analysing</div></div>
+    <div><div>Searching</div></div>
+    <div><div>Thinking</div></div>
+  </div>
+  
+</div>`;
     chat.appendChild(loader);
     chat.scrollTop = chat.scrollHeight;
 
@@ -307,4 +388,4 @@ async function sendMessage() {
 </script>
 
 </body>
-  </html>
+</html>

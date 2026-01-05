@@ -1,8 +1,8 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Aditya's AI Chatbot</title>
+<title>MessageGPT</title>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -10,107 +10,146 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300..900&display=swap');
 
-body {
-    background: #171717;
-    margin: 0;
-    font-family: "Lexend", sans-serif;
-    color: white;
+:root{
+--bg:#171717;--header:#2c2c2c;--box:#2a2a2a;
+--text:#fff;--accent:#6c63ff;
+}
+.light{
+--bg:linear-gradient(135deg,#ffecd2,#fcb69f);
+--header:linear-gradient(90deg,#667eea,#764ba2);
+--box:#fff;--text:#222;--accent:#ff6a00;
+}
+*{box-sizing:border-box;transition:.3s}
+body{margin:0;background:var(--bg);font-family:Lexend;color:var(--text)}
+
+header{
+background:var(--header);
+padding:14px;
+font-size:1.8em;
+font-weight:900;
+display:flex;
+justify-content:space-between;
+align-items:center;
 }
 
-header {
-    background: #3c3c3a;
-    padding: 10px;
-    font-size: 1.6em;
-    font-weight: 800;
+.chatArea{
+height:calc(100vh - 140px);
+overflow-y:auto;
+padding:12px;
 }
 
-.chatArea {
-    height: 100vh;
-    overflow-y: auto;
-    padding-bottom: 140px;
+.myMsg,.aiMsg{display:flex;margin:8px}
+.myMsg{justify-content:flex-end}
+.aiMsg{justify-content:flex-start}
+
+.myBox,.aiBox{
+max-width:65%;
+padding:14px;
+border-radius:16px;
+background:var(--box);
 }
 
-.myMsg, .aiMsg {
-    display: flex;
-    margin: 6px;
+.controls{
+position:fixed;
+bottom:12px;
+width:100%;
+display:flex;
+justify-content:center;
+}
+.inputWrap{
+width:80%;
+position:relative;
+}
+textarea{
+width:100%;
+height:60px;
+border-radius:18px;
+padding:14px 50px 14px 14px;
+border:none;
+resize:none;outline:none;
+font-family:Lexend;
 }
 
-.myMsg { justify-content: flex-end; }
-.aiMsg { justify-content: flex-start; }
+.sendBtn{
+position:absolute;
+right:10px;
+top:50%;
+transform:translateY(-50%);
+background:none;
+border:none;
+cursor:pointer;
+}
+.sendBtn svg{fill:var(--accent);width:22px}
 
-.myBox, .aiBox {
-    max-width: 60%;
-    padding: 10px;
-    border-radius: 14px;
-    background: #2a2a2a;
+.menu{
+position:fixed;
+right:-320px;
+top:0;
+width:320px;
+height:100%;
+background:var(--box);
+padding:14px;
+}
+.menu.open{right:0}
+
+.menuItem{
+padding:10px;
+border-bottom:1px solid #444;
+cursor:pointer;
 }
 
-.code-block {
-    background: #0f0f0f;
-    border-radius: 10px;
-    padding: 12px;
-    margin-top: 8px;
-    position: relative;
-    font-family: monospace;
-    white-space: pre;
-    overflow-x: auto;
+.aiOrb{
+width:14px;height:14px;
+border-radius:50%;
+background:var(--accent);
+animation:pulse 1.2s infinite;
 }
-
-.copy-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: #444;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    padding: 4px 8px;
-    cursor: pointer;
-    font-size: 0.75em;
+@keyframes pulse{
+0%{transform:scale(.7);opacity:.4}
+50%{transform:scale(1.2);opacity:1}
+100%{transform:scale(.7);opacity:.4}
 }
-
-.controls {
-    position: fixed;
-    bottom: 15px;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
-
-textarea {
-    width: 80%;
-    min-height: 60px;
-    border-radius: 14px;
-    padding: 10px;
-    border: none;
-    outline: none;
-    font-size: 1em;
-}
-
-#send {
-    margin-left: 8px;
-    padding: 0 20px;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-}
+  button{border:none;background:transparent}
+  button:hover{height:10px}
 </style>
 </head>
 
 <body>
 
-<div class="chatArea" id="chatA">
-    <header>Aditya's AI Chatbot</header>
+<header>
+MessageGPT
+<div>
+<button onclick="toggleTheme()">🌗</button>
+<button onclick="toggleMenu()">☰</button>
 </div>
+</header>
+
+<div class="chatArea" id="chatA"></div>
 
 <div class="controls">
-    <textarea id="userInput" placeholder="Type your message"></textarea>
-    <button id="send" onclick="sendMessage()">Send</button>
+<div class="inputWrap">
+<textarea id="userInput" placeholder="Ask anything..."></textarea>
+<button class="sendBtn" onclick="sendMessage()">
+<svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+</button>
+</div>
 </div>
 
+<div class="menu" id="menu">
+  <button id="menuCloseBtn" style="background:grey;border:none;cursor:pointer;">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+<path d="M18.3 5.71 12 12l6.3 6.29-1.42 1.42L12 13.41l-6.29 6.3-1.42-1.42L10.59 12 4.29 5.71 5.7 4.29 12 10.59l6.29-6.3z"/>
+</svg>
+</button>
+
+<hr>
+<p><b>About</b><br>Creator: Aditya<br>Uses Gemini API</p>
+  <hr></div>
+  
+
 <script>
-/* Firebase */
-	const firebaseConfig = {
+/* ---------- FIREBASE ---------- */
+const firebaseConfig = {
       apiKey: "AIzaSyBHenryTkUVP21VqW7KL44ZXM_P_Qq6IIc",
       authDomain: "chatting-e3bb2.firebaseapp.com",
       databaseURL: "https://chatting-e3bb2-default-rtdb.firebaseio.com/",
@@ -122,92 +161,123 @@ textarea {
     };
     firebase.initializeApp(firebaseConfig);
 
-
 const db = firebase.database();
 
-/* -------- CODE BLOCK PARSER -------- */
-function createAIMessageWithCopy(text) {
-    const box = document.createElement("div");
-    box.className = "aiBox";
+/* ---------- UI ---------- */
+const chatA=document.getElementById("chatA");
+const historyTab=document.getElementById("historyTab");
+const menu = document.getElementById("menu");
+const menuBtn = document.querySelector("header button:last-child");
+const closeBtn = document.getElementById("menuCloseBtn");
 
-    const regex = /```([\s\S]*?)```/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(text)) !== null) {
-        const before = text.slice(lastIndex, match.index);
-        if (before.trim()) {
-            const p = document.createElement("div");
-            p.textContent = before;
-            box.appendChild(p);
-        }
-
-        const pre = document.createElement("pre");
-        pre.className = "code-block";
-        pre.textContent = match[1].trim();
-
-        const btn = document.createElement("button");
-        btn.className = "copy-btn";
-        btn.textContent = "Copy";
-        btn.onclick = () => {
-            navigator.clipboard.writeText(match[1].trim());
-            btn.textContent = "Copied!";
-            setTimeout(() => btn.textContent = "Copy", 1500);
-        };
-
-        pre.appendChild(btn);
-        box.appendChild(pre);
-        lastIndex = regex.lastIndex;
-    }
-
-    const after = text.slice(lastIndex);
-    if (after.trim()) {
-        const p = document.createElement("div");
-        p.textContent = after;
-        box.appendChild(p);
-    }
-
-    return box;
+/* OPEN / CLOSE TOGGLE */
+function toggleMenu() {
+    menu.classList.toggle("open");
 }
 
-/* -------- SEND MESSAGE -------- */
-function sendMessage() {
-    const input = document.getElementById("userInput");
-    const msg = input.value.trim();
-    if (!msg) return;
+/* CLOSE BUTTON */
+closeBtn.onclick = () => {
+    menu.classList.remove("open");
+};
 
-    const chat = document.getElementById("chatA");
+/* CLICK OUTSIDE TO CLOSE */
+document.addEventListener("click", (e) => {
+    if (
+        menu.classList.contains("open") &&
+        !menu.contains(e.target) &&
+        !menuBtn.contains(e.target)
+    ) {
+        menu.classList.remove("open");
+    }
+});
+function toggleTheme(){document.body.classList.toggle("light")}
+function toggleMenu(){document.getElementById("menu").classList.toggle("open")}
 
-    const my = document.createElement("div");
-    my.className = "myMsg";
-    my.innerHTML = `<div class="myBox">${msg}</div>`;
-    chat.appendChild(my);
+/* ---------- UTILS ---------- */
+function encodeKey(t){
+return btoa(t).replace(/[/+=]/g,"");
+}
 
-    input.value = "";
-    chat.scrollTop = chat.scrollHeight;
+function formatAI(t){
+return t.replace(/\*\*(.*?)\*\*/g,"<b>$1</b>");
+}
 
-    fetch("/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: msg})
-    })
-    .then(r => r.json())
-    .then(data => {
-        const ai = document.createElement("div");
-        ai.className = "aiMsg";
+/* ---------- HISTORY ---------- */
+function saveLocal(q,a){
+let h=JSON.parse(localStorage.getItem("history")||"[]");
+h.unshift({q,a});
+localStorage.setItem("history",JSON.stringify(h));
+loadHistory();
+}
 
-        if (data.reply) {
-            ai.appendChild(createAIMessageWithCopy(data.reply));
-        } else {
-            ai.innerHTML = `<div class="aiBox">${data.error}</div>`;
-        }
+function loadHistory(){
+historyTab.innerHTML="";
+(JSON.parse(localStorage.getItem("history")||"[]")).forEach(x=>{
+let d=document.createElement("div");
+d.className="menuItem";
+d.textContent=x.q;
+d.onclick=()=>addAI(x.a);
+historyTab.appendChild(d);
+});
+}
+loadHistory();
 
-        chat.appendChild(ai);
-        chat.scrollTop = chat.scrollHeight;
-    })
-    .catch(err => alert(err));
+/* ---------- CHAT ---------- */
+function addAI(t){
+let ai=document.createElement("div");
+ai.className="aiMsg";
+let box=document.createElement("div");
+box.className="aiBox";
+box.innerHTML=formatAI(t);
+ai.appendChild(box);
+chatA.appendChild(ai);
+chatA.scrollTop=chatA.scrollHeight;
+}
+
+function sendMessage(){
+const input=document.getElementById("userInput");
+const msg=input.value.trim();
+if(!msg)return;
+
+let my=document.createElement("div");
+my.className="myMsg";
+my.innerHTML=`<div class="myBox"></div>`;
+my.firstChild.textContent=msg;
+chatA.appendChild(my);
+input.value="";
+
+let loader=document.createElement("div");
+loader.className="aiMsg";
+loader.innerHTML=`<div class="aiBox"><div class="aiOrb"></div></div>`;
+chatA.appendChild(loader);
+
+const key=encodeKey(msg);
+
+/* CHECK FIREBASE */
+db.ref("mess/"+key).once("value").then(snap=>{
+if(snap.exists()){
+loader.remove();
+addAI(snap.val().answer);
+}else{
+fetch("/chat",{method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({message:msg})})
+.then(r=>r.json())
+.then(d=>{
+loader.remove();
+addAI(d.reply);
+saveLocal(msg,d.reply);
+
+/* SAVE TO FIREBASE */
+db.ref("mess/"+key).set({
+question:msg,
+answer:d.reply
+});
+});
+}
+});
 }
 </script>
 
 </body>
-	</html>
+</html>

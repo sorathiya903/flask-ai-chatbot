@@ -164,121 +164,147 @@ const firebaseConfig = {
 
 const db = firebase.database();
 
-/* ---------- UI ---------- */
-const chatA=document.getElementById("chatA");
-const historyTab=document.getElementById("historyTab");
-const menu = document.getElementById("menu");
-const menuBtn = document.querySelector("header button:last-child");
-const closeBtn = document.getElementById("menuCloseBtn");
-
-/* OPEN / CLOSE TOGGLE */
-function toggleMenu() {
-    menu.classList.toggle("open");
+/* ---------- FIREBASE INIT ---------- */
+function toggleTheme(){
+ document.body.classList.toggle("light") 
+}
+/* ---------- ESCAPE HTML FUNCTION ---------- */
+function escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-/* CLOSE BUTTON */
-closeBtn.onclick = () => {
-    menu.classList.remove("open");
-};
+/* ---------- CREATE AI MESSAGE WITH CODE & BOLD ---------- */
+function createAIMessageWithCopy(text) {
+    const box = document.createElement("div");
+    box.className = "aiBox";
 
-/* CLICK OUTSIDE TO CLOSE */
-document.addEventListener("click", (e) => {
-    if (
-        menu.classList.contains("open") &&
-        !menu.contains(e.target) &&
-        !menuBtn.contains(e.target)
-    ) {
-        menu.classList.remove("open");
+    const regex = /```([\s\S]*?)```/g;
+    let last = 0, match;
+
+    while ((match = regex.exec(text))) {
+        // Text before code block
+        const before = text.slice(last, match.index);
+        if (before.trim()) {
+            const p = document.createElement("div");
+            p.innerHTML = escapeHTML(before).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            box.appendChild(p);
+        }
+
+        // Code block
+        const pre = document.createElement("div");
+        pre.className = "code-block";
+
+        const code = document.createElement("code");
+        code.textContent = match[1].trim();
+
+        const btn = document.createElement("button");
+        btn.className = "copy-btn";
+        btn.textContent = "Copy";
+        btn.onclick = () => {
+            navigator.clipboard.writeText(code.textContent);
+            btn.textContent = "Copied!";
+            setTimeout(()=>btn.textContent="Copy",1200);
+        };
+
+        pre.appendChild(btn);
+        pre.appendChild(code);
+        box.appendChild(pre);
+
+        last = regex.lastIndex;
     }
-});
-function toggleTheme(){document.body.classList.toggle("light")}
-function toggleMenu(){document.getElementById("menu").classList.toggle("open")}
 
-/* ---------- UTILS ---------- */
-function encodeKey(t){
-return btoa(t).replace(/[/+=]/g,"");
+    // Remaining text after last code block
+    const after = text.slice(last);
+    if (after.trim()) {
+        const p = document.createElement("div");
+        p.innerHTML = escapeHTML(after).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        box.appendChild(p);
+    }
+
+    return box;
 }
 
-function formatAI(t){
-return t.replace(/\*\*(.*?)\*\*/g,"<b>$1</b>");
-}
+/* ---------- SEND MESSAGE ---------- */
+async function sendMessage() {
+    const input = document.getElementById("userInput");
+    const msg = input.value.trim();
+    if (!msg) return;
 
-/* ---------- HISTORY ---------- */
-function saveLocal(q,a){
-let h=JSON.parse(localStorage.getItem("history")||"[]");
-h.unshift({q,a});
-localStorage.setItem("history",JSON.stringify(h));
-loadHistory();
-}
+    const chat = document.getElementById("chatA");
 
-function loadHistory(){
-historyTab.innerHTML="";
-(JSON.parse(localStorage.getItem("history")||"[]")).forEach(x=>{
-let d=document.createElement("div");
-d.className="menuItem";
-d.textContent=x.q;
-d.onclick=()=>addAI(x.a);
-historyTab.appendChild(d);
-});
-}
-loadHistory();
+    // Display user message
+    const my = document.createElement("div");
+    my.className = "myMsg";
+    const myBox = document.createElement("div");
+    myBox.className = "myBox";
+    myBox.textContent = msg;
+    my.appendChild(myBox);
+    chat.appendChild(my);
 
-/* ---------- CHAT ---------- */
-function addAI(t){
-let ai=document.createElement("div");
-ai.className="aiMsg";
-let box=document.createElement("div");
-box.className="aiBox";
-box.innerHTML=formatAI(t);
-ai.appendChild(box);
-chatA.appendChild(ai);
-chatA.scrollTop=chatA.scrollHeight;
-}
+    input.value = "";
+    chat.scrollTop = chat.scrollHeight;
 
-function sendMessage(){
-const input=document.getElementById("userInput");
-const msg=input.value.trim();
-if(!msg)return;
+    // Loader animation
+    const loader = document.createElement("div");
+    loader.className = "aiMsg";
+    loader.innerHTML = `<div class="aiBox typing"><span></span><span></span><span></span></div>`;
+    chat.appendChild(loader);
+    chat.scrollTop = chat.scrollHeight;
 
-let my=document.createElement("div");
-my.className="myMsg";
-my.innerHTML=`<div class="myBox"></div>`;
-my.firstChild.textContent=msg;
-chatA.appendChild(my);
-input.value="";
+    try {
+        // Check Firebase if question exists
+        const snapshot = await db.ref('mess').orderByChild('question').equalTo(msg).once('value');
+        let reply = null;
 
-let loader=document.createElement("div");
-loader.className="aiMsg";
-loader.innerHTML=`<div class="aiBox"><div class="aiOrb"></div></div>`;
-chatA.appendChild(loader);
+        if (snapshot.exists()) {
+            // If exists, get answer
+            snapshot.forEach(child => {
+                reply = child.val().answer;
+            });
+        } else {
+            // Call API if question not in DB
+            const res = await fetch("/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: msg})
+            });
+            const data = await res.json();
+            reply = data.reply || data.error;
 
-const key=encodeKey(msg);
+            // Store question & answer in Firebase
+            db.ref('qA').push({
+                question: msg,
+                answer: reply,
+                timestamp: new Date().toISOString()
+            });
+        }
 
-/* CHECK FIREBASE */
-db.ref("mess/"+key).once("value").then(snap=>{
-if(snap.exists()){
-loader.remove();
-addAI(snap.val().answer);
-}else{
-fetch("/chat",{method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({message:msg})})
-.then(r=>r.json())
-.then(d=>{
-loader.remove();
-addAI(d.reply);
-saveLocal(msg,d.reply);
+        loader.remove();
 
-/* SAVE TO FIREBASE */
-db.ref("mess/"+key).set({
-question:msg,
-answer:d.reply
-});
-});
-}
-});
+        // Display AI answer
+        const ai = document.createElement("div");
+        ai.className = "aiMsg";
+        ai.appendChild(createAIMessageWithCopy(reply));
+        chat.appendChild(ai);
+        chat.scrollTop = chat.scrollHeight;
+
+        // Store question locally for menu
+        let history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+        history.push({question: msg, answer: reply});
+        localStorage.setItem("chatHistory", JSON.stringify(history));
+
+    } catch(err) {
+        loader.remove();
+        const ai = document.createElement("div");
+        ai.className = "aiMsg";
+        ai.innerHTML = `<div class="aiBox">Error: ${escapeHTML(err.message)}</div>`;
+        chat.appendChild(ai);
+        chat.scrollTop = chat.scrollHeight;
+    }
 }
 </script>
 
 </body>
-</html>
+  </html>

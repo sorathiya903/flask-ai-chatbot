@@ -2,242 +2,262 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Motion Detection Centered Boxes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive 3D Galaxy</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <style>
-body {
-  margin:0;
-  overflow:hidden;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(to bottom, #e0f7fa, #ffffff);
-  position: relative;
-  height: 100vh;
-}
-
-video, canvas {
-  position: absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  object-fit: cover;
-}
-
-#status {
-  position: fixed;
-  top: 20px;
-  left:50%;
-  transform: translateX(-50%);
-  background: rgba(255,69,0,0.85);
-  color:white;
-  padding:8px 16px;
-  border-radius:12px;
-  font-weight:bold;
-  display:none;
-  z-index: 10;
-}
-
-#panel {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width:95%;
-  max-width:400px;
-  background: rgba(255,255,255,0.9);
-  border-radius: 20px 20px 0 0;
-  padding: 15px;
-  display:flex;
-  flex-direction: column;
-  align-items:center;
-  z-index:20;
-}
-
-#zoomSlider {
-  width: 80%;
-  margin-bottom: 12px;
-}
-
-#startBtn, #resetBtn {
-  
-  width: 100px;
-  padding: 10px;
-  margin: 5px 10px;
-  border:none;
-  border-radius:12px;
-  cursor:pointer;
-  font-weight:bold;
-  font-size:14px;
-}
-
-#startBtn { background-color:#4caf50; color:white;}
-#startBtn:hover { background-color:#45a049;}
-#resetBtn { background-color:#f44336; color:white;}
-#resetBtn:hover { background-color:#e53935;}
-
-.selector {
-  position:absolute;
-  width:150px;
-  top:10%;
-  height:150px;
-  border:3px solid #00bfa5;
-  background: rgba(0,191,165,0.2);
-  border-radius:12px;
-  z-index:15;
-}
+    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+    #video-container { position: fixed; bottom: 20px; right: 20px; width: 180px; height: 130px; border: 2px solid #555; border-radius: 8px; overflow: hidden; transform: scaleX(-1);}
+    #input_video { width: 100%; height: 100%; object-fit: cover; }
+    #ui { position: fixed; top: 20px; left: 20px; color: white; pointer-events: none; }
+    .guide { font-size: 0.8rem; margin-top: 5px; color: #aaa; }
+    #status { color: #00ffcc; font-weight: bold; margin-top: 10px; }
 </style>
 </head>
 <body>
 
-<audio id="alertSound" src="https://orangefreesounds.com/wp-content/uploads/2023/08/Beep-beep-tone.mp3" preload="auto"></audio>
-<div id="status">⚠️ MOTION DETECTED</div>
-
-<div id="panel">
-  <input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1">
-  <div>
-    <button id="startBtn">Start</button>
-    <button id="resetBtn">Reset</button>
-  </div>
+<div id="ui">
+    <h2>3D Gesture Galaxy</h2>
+    <div class="guide">🤏 Pinch: Change Particle Color</div>
+    <div class="guide">☝️ Index Finger Only: Morph to Cube</div>
+    <div class="guide">✌️ Three Fingers: Slow Rotation</div>
+    <div class="guide">↔️ Move Hand: Move Particles</div>
+    <div class="guide">Blink Eyes: Change Background</div>
+    <div id="status">Starting Camera...</div>
 </div>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas"></canvas>
-
-<div class="selector" id="selector1"></div>
-<div class="selector" id="selector2"></div>
+<div id="video-container">
+    <video id="input_video"></video>
+</div>
 
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const particleCount = 5000;
+let scene, camera, renderer, points, geometry;
+let currentShape = 'sphere';
+const videoElement = document.getElementById('input_video');
+const statusText = document.getElementById('status');
 
-const startBtn = document.getElementById("startBtn");
-const resetBtn = document.getElementById("resetBtn");
-const statusBox = document.getElementById("status");
-const zoomSlider = document.getElementById("zoomSlider");
-const alertSound = document.getElementById("alertSound");
+// Rotation speeds
+let rotationSpeedY = 0.005;
+let rotationSpeedX = 0.002;
+const defaultY = 0.005;
+const defaultX = 0.002;
+const slowY = 0.001;
+const slowX = 0.0005;
 
-const selector1 = document.getElementById("selector1");
-const selector2 = document.getElementById("selector2");
+// Particle offset for hand movement
+let offsetX = 0, offsetY = 0;
 
-let detecting = false;
-let prevFrame1 = null;
-let prevFrame2 = null;
+// Store initial particle positions
+let originalPositions;
 
-// Selector positions
-let selectorPos1 = {w:150,h:150};
-let selectorPos2 = {w:150,h:150};
+// Dark background colors
+const darkColors = ["red","black","blue","white","green","tomato"];
 
-// Function to center box on video
-function centerBox(selectorDiv, boxWidth, boxHeight){
-    const rect = video.getBoundingClientRect();
-    selectorDiv.style.left = rect.left + (rect.width - boxWidth)/2+ 'px';
-    selectorDiv.style.top  = rect.top  + (rect.height - boxHeight)/2-100 + 'px';
-    selectorDiv.style.width = boxWidth + 'px';
-    selectorDiv.style.height = boxHeight + 'px';
+// Initialize Three.js
+function initThree(){
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight,0.1,2000);
+    camera.position.z = 500;
+
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount*3);
+    const colors = new Float32Array(particleCount*3);
+    originalPositions = new Float32Array(particleCount*3);
+
+    for(let i=0;i<particleCount;i++){
+        const {x,y,z} = randomPointInSphere(250);
+        positions[i*3] = x;
+        positions[i*3+1] = y;
+        positions[i*3+2] = z;
+
+        originalPositions[i*3] = x;
+        originalPositions[i*3+1] = y;
+        originalPositions[i*3+2] = z;
+
+        colors[i*3] = Math.random();
+        colors[i*3+1] = Math.random();
+        colors[i*3+2] = Math.random();
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors,3));
+
+    const material = new THREE.PointsMaterial({
+        size:3,
+        vertexColors:true,
+        transparent:true,
+        opacity:0.8
+    });
+
+    points = new THREE.Points(geometry, material);
+    scene.add(points);
 }
 
-// Update boxes on window resize
-window.addEventListener('resize', ()=>{
-    centerBox(selector1, selectorPos1.w, selectorPos1.h);
-    centerBox(selector2, selectorPos2.w, selectorPos2.h);
+// Helper function: random point inside a sphere
+function randomPointInSphere(radius){
+    const u = Math.random();
+    const v = Math.random();
+    const theta = 2 * Math.PI * u;
+    const phi = Math.acos(2*v - 1);
+    const r = Math.cbrt(Math.random()) * radius;
+    return {
+        x: r * Math.sin(phi) * Math.cos(theta),
+        y: r * Math.sin(phi) * Math.sin(theta),
+        z: r * Math.cos(phi)
+    };
+}
+
+// Morph between sphere and cube
+function updateShape(target){
+    if(currentShape === target) return;
+    currentShape = target;
+    const positions = geometry.attributes.position.array;
+
+    for(let i=0;i<particleCount;i++){
+        if(target==='cube'){
+            positions[i*3] = (Math.random()-0.5)*300 + offsetX;
+            positions[i*3+1] = (Math.random()-0.5)*300 + offsetY;
+            positions[i*3+2] = (Math.random()-0.5)*300;
+        }else{
+            const {x,y,z} = randomPointInSphere(250);
+            positions[i*3] = x + offsetX;
+            positions[i*3+1] = y + offsetY;
+            positions[i*3+2] = z;
+        }
+    }
+    geometry.attributes.position.needsUpdate = true;
+}
+
+// EAR calculation for blink detection
+function getEAR(landmarks,leftIndices,rightIndices){
+    function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+    const leftEAR=(dist(landmarks[leftIndices[1]],landmarks[leftIndices[5]])+
+                   dist(landmarks[leftIndices[2]],landmarks[leftIndices[4]]))/
+                  (2*dist(landmarks[leftIndices[0]],landmarks[leftIndices[3]]));
+    const rightEAR=(dist(landmarks[rightIndices[1]],landmarks[rightIndices[5]])+
+                   dist(landmarks[rightIndices[2]],landmarks[rightIndices[4]]))/
+                  (2*dist(landmarks[rightIndices[0]],rightIndices[3]));
+    return (leftEAR+rightEAR)/2;
+}
+
+// Hand gesture logic
+function onResultsHands(results){
+    if(results.multiHandLandmarks && results.multiHandLandmarks.length>0){
+        const hand = results.multiHandLandmarks[0];
+        let actionText = "Tracking Hand...";
+
+        // Particle offset based on hand
+        offsetX = (hand[0].x-0.5)*800;
+        offsetY = -(hand[0].y-0.5)*600;
+
+        // Zoom logic (optional)
+        const dx = hand[0].x - hand[12].x;
+        const dy = hand[0].y - hand[12].y;
+        const handSize = Math.sqrt(dx*dx + dy*dy);
+        const targetZ = 800 - (handSize*1200);
+        camera.position.z += (targetZ - camera.position.z)*0.1;
+
+        // Pinch: change particle color
+        const pinchDist = Math.hypot(hand[4].x-hand[8].x, hand[4].y-hand[8].y);
+        if(pinchDist<0.04){
+            const colors = geometry.attributes.color.array;
+            const r=Math.random(), g=Math.random(), b=Math.random();
+            for(let i=0;i<colors.length;i+=3){ colors[i]=r; colors[i+1]=g; colors[i+2]=b; }
+            geometry.attributes.color.needsUpdate = true;
+            actionText="Change Color";
+        }
+
+        // Shape gestures
+        const isIndexUp = hand[8].y<hand[6].y;
+        const isMiddleUp = hand[12].y<hand[10].y;
+        const isRingUp = hand[16].y<hand[14].y;
+        const isPinkyUp = hand[20].y<hand[18].y;
+
+        if(isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp){
+            updateShape('cube');
+            actionText="Morph to Cube";
+        }else{
+            updateShape('sphere');
+        }
+
+        // Rotation speed gestures
+        if(isIndexUp && isMiddleUp && isRingUp && !isPinkyUp){
+            rotationSpeedY=slowY;
+            rotationSpeedX=slowX;
+            actionText="Slow Rotation";
+        }else{
+            rotationSpeedY=defaultY;
+            rotationSpeedX=defaultX;
+        }
+
+        statusText.innerText="Action: "+actionText;
+    }else{
+        statusText.innerText="Hand not detected";
+    }
+}
+
+// Initialize Three.js
+initThree();
+
+// Setup Hands
+const hands = new Hands({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+hands.setOptions({maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
+hands.onResults(onResultsHands);
+
+// Setup Face Mesh for blink
+const faceMesh = new FaceMesh({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+faceMesh.setOptions({maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
+faceMesh.onResults((results)=>{
+    if(results.multiFaceLandmarks && results.multiFaceLandmarks.length>0){
+        const landmarks = results.multiFaceLandmarks[0];
+        const leftEye=[33,160,158,133,153,144];
+        const rightEye=[362,385,387,263,373,380];
+        const ear = getEAR(landmarks,leftEye,rightEye);
+        if(ear<0.2){
+            const color = darkColors[Math.floor(Math.random()*darkColors.length)];
+            scene.background = new THREE.Color(color);
+        }
+    }
 });
 
-// Camera
-navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}})
-.then(stream=>{
-    video.srcObject = stream;
-    const track = stream.getVideoTracks()[0];
-    const caps = track.getCapabilities();
-    if(caps.zoom){
-        zoomSlider.min = caps.zoom.min;
-        zoomSlider.max = caps.zoom.max;
-        zoomSlider.step = caps.zoom.step;
+// Camera input
+const cameraInput = new Camera(videoElement,{
+    onFrame: async ()=>{ await hands.send({image:videoElement}); await faceMesh.send({image:videoElement}); },
+    width:640, height:480
+});
+cameraInput.start();
+
+// Animation loop
+function animate(){
+    requestAnimationFrame(animate);
+    points.rotation.y += rotationSpeedY;
+    points.rotation.x += rotationSpeedX;
+
+    // Move particles smoothly according to hand
+    const positions = geometry.attributes.position.array;
+    for(let i=0;i<particleCount;i++){
+        positions[i*3] = originalPositions[i*3] + offsetX*0.2;
+        positions[i*3+1] = originalPositions[i*3+1] + offsetY*0.2;
     }
+    geometry.attributes.position.needsUpdate = true;
 
-    video.onloadedmetadata = ()=>{
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        // Center both boxes
-        centerBox(selector1, selectorPos1.w, selectorPos1.h);
-        centerBox(selector2, selectorPos2.w, selectorPos2.h);
-    }
-})
-.catch(()=>alert("Camera access denied"));
-
-// Zoom slider
-zoomSlider.oninput = ()=>{
-    const track = video.srcObject.getVideoTracks()[0];
-    track.applyConstraints({advanced:[{zoom: zoomSlider.value}]});
+    renderer.render(scene,camera);
 }
 
-// Draw loop
-function drawLoop(){
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    let motionDetected = false;
-
-    if(detecting){
-        // Box1
-        const rect1 = selector1.getBoundingClientRect();
-        const x1 = rect1.left - canvas.getBoundingClientRect().left;
-        const y1 = rect1.top  - canvas.getBoundingClientRect().top;
-        const frame1 = ctx.getImageData(x1, y1, selectorPos1.w, selectorPos1.h);
-
-        if(prevFrame1){
-            let diff1 = 0;
-            for(let i=0;i<frame1.data.length;i+=4) diff1 += Math.abs(frame1.data[i]-prevFrame1.data[i]);
-            if(diff1>90000) motionDetected=true;
-        }
-        prevFrame1 = frame1;
-
-        // Box2
-        const rect2 = selector2.getBoundingClientRect();
-        const x2 = rect2.left - canvas.getBoundingClientRect().left;
-        const y2 = rect2.top  - canvas.getBoundingClientRect().top;
-        const frame2 = ctx.getImageData(x2, y2, selectorPos2.w, selectorPos2.h);
-
-        if(prevFrame2){
-            let diff2 = 0;
-            for(let i=0;i<frame2.data.length;i+=4) diff2 += Math.abs(frame2.data[i]-prevFrame2.data[i]);
-            if(diff2>90000) motionDetected=true;
-        }
-        prevFrame2 = frame2;
-
-        if(motionDetected){
-            statusBox.style.display = "block";
-          navigator.vibrate(200,100,200);
-            if(alertSound.paused){
-                alertSound.currentTime=0;
-                alertSound.play().catch(()=>{});
-            }
-        } else {
-            statusBox.style.display = "none";
-        }
-    }
-
-    requestAnimationFrame(drawLoop);
-}
-
-// Start button
-startBtn.onclick = ()=>{
-    detecting = true;
-    startBtn.disabled=true;
-    zoomSlider.disabled=true;
-}
-
-// Reset button
-resetBtn.onclick = ()=>{
-    detecting=false;
-    prevFrame1=null;
-    prevFrame2=null;
-    statusBox.style.display="none";
-    startBtn.disabled=false;
-    zoomSlider.disabled=false;
-}
-
-// Start draw loop
-drawLoop();
+window.addEventListener('resize',()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+});
+animate();
 </script>
 </body>
-  </html>
+</html>

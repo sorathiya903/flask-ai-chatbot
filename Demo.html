@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Motion Detection Centered Boxes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin:0;
+  overflow:hidden;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to bottom, #e0f7fa, #ffffff);
+  position: relative;
+  height: 100vh;
+}
+
+video, canvas {
+  position: absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  object-fit: cover;
+}
+
+#status {
+  position: fixed;
+  top: 20px;
+  left:50%;
+  transform: translateX(-50%);
+  background: rgba(255,69,0,0.85);
+  color:white;
+  padding:8px 16px;
+  border-radius:12px;
+  font-weight:bold;
+  display:none;
+  z-index: 10;
+}
+
+#panel {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width:95%;
+  max-width:400px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 20px 20px 0 0;
+  padding: 15px;
+  display:flex;
+  flex-direction: column;
+  align-items:center;
+  z-index:20;
+}
+
+#zoomSlider {
+  width: 80%;
+  margin-bottom: 12px;
+}
+
+#startBtn, #resetBtn {
+  
+  width: 100px;
+  padding: 10px;
+  margin: 5px 10px;
+  border:none;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:bold;
+  font-size:14px;
+}
+
+#startBtn { background-color:#4caf50; color:white;}
+#startBtn:hover { background-color:#45a049;}
+#resetBtn { background-color:#f44336; color:white;}
+#resetBtn:hover { background-color:#e53935;}
+
+.selector {
+  position:absolute;
+  width:150px;
+  top:10%;
+  height:150px;
+  border:3px solid #00bfa5;
+  background: rgba(0,191,165,0.2);
+  border-radius:12px;
+  z-index:15;
+}
+</style>
+</head>
+<body>
+
+<audio id="alertSound" src="https://orangefreesounds.com/wp-content/uploads/2023/08/Beep-beep-tone.mp3" preload="auto"></audio>
+<div id="status">⚠️ MOTION DETECTED</div>
+
+<div id="panel">
+  <input type="range" id="zoomSlider" min="1" max="1" step="0.1" value="1">
+  <div>
+    <button id="startBtn">Start</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+</div>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<div class="selector" id="selector1"></div>
+<div class="selector" id="selector2"></div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const startBtn = document.getElementById("startBtn");
+const resetBtn = document.getElementById("resetBtn");
+const statusBox = document.getElementById("status");
+const zoomSlider = document.getElementById("zoomSlider");
+const alertSound = document.getElementById("alertSound");
+
+const selector1 = document.getElementById("selector1");
+const selector2 = document.getElementById("selector2");
+
+let detecting = false;
+let prevFrame1 = null;
+let prevFrame2 = null;
+
+// Selector positions
+let selectorPos1 = {w:150,h:150};
+let selectorPos2 = {w:150,h:150};
+
+// Function to center box on video
+function centerBox(selectorDiv, boxWidth, boxHeight){
+    const rect = video.getBoundingClientRect();
+    selectorDiv.style.left = rect.left + (rect.width - boxWidth)/2+ 'px';
+    selectorDiv.style.top  = rect.top  + (rect.height - boxHeight)/2-100 + 'px';
+    selectorDiv.style.width = boxWidth + 'px';
+    selectorDiv.style.height = boxHeight + 'px';
+}
+
+// Update boxes on window resize
+window.addEventListener('resize', ()=>{
+    centerBox(selector1, selectorPos1.w, selectorPos1.h);
+    centerBox(selector2, selectorPos2.w, selectorPos2.h);
+});
+
+// Camera
+navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}})
+.then(stream=>{
+    video.srcObject = stream;
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities();
+    if(caps.zoom){
+        zoomSlider.min = caps.zoom.min;
+        zoomSlider.max = caps.zoom.max;
+        zoomSlider.step = caps.zoom.step;
+    }
+
+    video.onloadedmetadata = ()=>{
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Center both boxes
+        centerBox(selector1, selectorPos1.w, selectorPos1.h);
+        centerBox(selector2, selectorPos2.w, selectorPos2.h);
+    }
+})
+.catch(()=>alert("Camera access denied"));
+
+// Zoom slider
+zoomSlider.oninput = ()=>{
+    const track = video.srcObject.getVideoTracks()[0];
+    track.applyConstraints({advanced:[{zoom: zoomSlider.value}]});
+}
+
+// Draw loop
+function drawLoop(){
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    let motionDetected = false;
+
+    if(detecting){
+        // Box1
+        const rect1 = selector1.getBoundingClientRect();
+        const x1 = rect1.left - canvas.getBoundingClientRect().left;
+        const y1 = rect1.top  - canvas.getBoundingClientRect().top;
+        const frame1 = ctx.getImageData(x1, y1, selectorPos1.w, selectorPos1.h);
+
+        if(prevFrame1){
+            let diff1 = 0;
+            for(let i=0;i<frame1.data.length;i+=4) diff1 += Math.abs(frame1.data[i]-prevFrame1.data[i]);
+            if(diff1>90000) motionDetected=true;
+        }
+        prevFrame1 = frame1;
+
+        // Box2
+        const rect2 = selector2.getBoundingClientRect();
+        const x2 = rect2.left - canvas.getBoundingClientRect().left;
+        const y2 = rect2.top  - canvas.getBoundingClientRect().top;
+        const frame2 = ctx.getImageData(x2, y2, selectorPos2.w, selectorPos2.h);
+
+        if(prevFrame2){
+            let diff2 = 0;
+            for(let i=0;i<frame2.data.length;i+=4) diff2 += Math.abs(frame2.data[i]-prevFrame2.data[i]);
+            if(diff2>90000) motionDetected=true;
+        }
+        prevFrame2 = frame2;
+
+        if(motionDetected){
+            statusBox.style.display = "block";
+          navigator.vibrate(200,100,200);
+            if(alertSound.paused){
+                alertSound.currentTime=0;
+                alertSound.play().catch(()=>{});
+            }
+        } else {
+            statusBox.style.display = "none";
+        }
+    }
+
+    requestAnimationFrame(drawLoop);
+}
+
+// Start button
+startBtn.onclick = ()=>{
+    detecting = true;
+    startBtn.disabled=true;
+    zoomSlider.disabled=true;
+}
+
+// Reset button
+resetBtn.onclick = ()=>{
+    detecting=false;
+    prevFrame1=null;
+    prevFrame2=null;
+    statusBox.style.display="none";
+    startBtn.disabled=false;
+    zoomSlider.disabled=false;
+}
+
+// Start draw loop
+drawLoop();
+</script>
+</body>
+  </html>
